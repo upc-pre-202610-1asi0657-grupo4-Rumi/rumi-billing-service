@@ -4,6 +4,25 @@ server:
 spring:
   application:
     name: rumi-billing-service
+  web:
+    # Error messages are always in English, whatever the locale of the server or the client.
+    locale: en
+    locale-resolver: fixed
+  datasource:
+    url: ${BILLING_DB_URL:jdbc:postgresql://localhost:5432/billingdb}
+    username: ${BILLING_DB_USERNAME:postgres}
+    password: ${BILLING_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        # Instants are stored in UTC as plain TIMESTAMP columns.
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
 
 springdoc:
   api-docs:
