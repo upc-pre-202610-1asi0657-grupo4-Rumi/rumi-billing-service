@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Rumi Billing Service API",
-        "description": "REST API of the Billing bounded context. Skeleton: only the health endpoint exists; functionality is planned for later sprints.",
+        "description": "REST API of the Billing bounded context: subscription plans (US05), subscription status with the payment history (US07) and online payment through a simulated payment gateway (US24). Every route is for administrators and is called through the API gateway, which sets the X-User-Id and X-Role headers.",
         "version": "0.1.0"
     },
     "servers": [
@@ -15,9 +15,811 @@
         {
             "name": "Health",
             "description": "Liveness of the service skeleton"
+        },
+        {
+            "name": "Payments",
+            "description": "Online payment of a subscription (US24)"
+        },
+        {
+            "name": "Subscriptions",
+            "description": "Subscription plans (US05) and subscription status (US07)"
         }
     ],
     "paths": {
+        "/api/v1/subscriptions": {
+            "post": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Choose a plan for a building",
+                "description": "US05. Creates the subscription of the building as PENDING_PAYMENT; an approved payment (POST /api/v1/payments) activates it. A building can have only one subscription that is pending payment or active; an active one past its expiry is closed as EXPIRED and the building may choose again. The building is not checked against the Building service yet. Call it through the API gateway with 'Authorization: Bearer <token>' of an administrator; the gateway sets X-User-Id and X-Role.",
+                "operationId": "choose",
+                "parameters": [
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the signed-in administrator, set by the API gateway from the token; clients do not send it",
+                        "required": true,
+                        "example": "7d3c5b1e-2f4a-4c8e-9b6d-1a2b3c4d5e6f"
+                    },
+                    {
+                        "name": "X-Role",
+                        "in": "header",
+                        "description": "Role of the signed-in user, set by the API gateway from the token; it must be ADMINISTRATOR",
+                        "required": true,
+                        "example": "ADMINISTRATOR"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChooseSubscriptionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The subscription was created; Location points to it",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubscriptionResponse"
+                                },
+                                "examples": {
+                                    "Pending payment": {
+                                        "description": "Pending payment",
+                                        "value": {
+                                            "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+                                            "buildingId": "3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+                                            "plan": {
+                                                "id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001",
+                                                "code": "MONTHLY",
+                                                "name": "Plan mensual",
+                                                "billingCycle": "MONTHLY",
+                                                "price": 149.0,
+                                                "currency": "PEN",
+                                                "sensorLimit": 20
+                                            },
+                                            "status": "PENDING_PAYMENT",
+                                            "startsAt": null,
+                                            "expiresAt": null,
+                                            "createdAt": "2026-11-21T15:00:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid data; field errors are listed in 'errors'",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing fields": {
+                                        "description": "Missing fields",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "Invalid request content.",
+                                            "instance": "/api/v1/subscriptions",
+                                            "errors": {
+                                                "buildingId": "must not be null",
+                                                "planCode": "must not be blank"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The plan does not exist",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Unknown plan": {
+                                        "description": "Unknown plan",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "The plan does not exist.",
+                                            "instance": "/api/v1/subscriptions"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The building already has a subscription pending payment or active",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Already subscribed": {
+                                        "description": "Already subscribed",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Conflict",
+                                            "status": 409,
+                                            "detail": "The building already has a subscription that is pending payment or active.",
+                                            "instance": "/api/v1/subscriptions"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The request did not come through the gateway with a valid token",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Unauthorized",
+                                            "status": 401,
+                                            "detail": "The request has no valid X-User-Id header. Call this endpoint through the API gateway with a valid token.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The signed-in user is not an administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Resident": {
+                                        "description": "Resident",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Forbidden",
+                                            "status": 403,
+                                            "detail": "Only an administrator can manage subscriptions and payments.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments": {
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Pay a subscription online",
+                "description": "US24. Charges the price of the plan to the card through the payment gateway (simulated today: 4000000000000002 is declined, any other valid card is approved). An approved payment activates a subscription pending payment, renews an active one from its current expiry, or restarts an expired one from now. A declined payment is kept as REJECTED and answered with 402. Only the brand and the last four digits of the card are kept. Sending the same Idempotency-Key again answers with the payment already made (200) and charges nothing. Call it through the API gateway with 'Authorization: Bearer <token>' of an administrator; the gateway sets X-User-Id and X-Role.",
+                "operationId": "pay",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "query",
+                        "description": "Optional key, at most 64 characters, that makes retries safe: the same key never charges twice",
+                        "example": "order-2026-11-21-0001"
+                    },
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the signed-in administrator, set by the API gateway from the token; clients do not send it",
+                        "required": true,
+                        "example": "7d3c5b1e-2f4a-4c8e-9b6d-1a2b3c4d5e6f"
+                    },
+                    {
+                        "name": "X-Role",
+                        "in": "header",
+                        "description": "Role of the signed-in user, set by the API gateway from the token; it must be ADMINISTRATOR",
+                        "required": true,
+                        "example": "ADMINISTRATOR"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The payment was approved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentResponse"
+                                },
+                                "examples": {
+                                    "Approved": {
+                                        "description": "Approved",
+                                        "value": {
+                                            "id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+                                            "subscriptionId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+                                            "amount": 149.0,
+                                            "currency": "PEN",
+                                            "status": "APPROVED",
+                                            "cardBrand": "VISA",
+                                            "cardLast4": "1111",
+                                            "paidAt": "2026-11-21T15:05:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "The Idempotency-Key was already used for this subscription; nothing was charged and the stored payment is returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentResponse"
+                                },
+                                "examples": {
+                                    "Repeated key": {
+                                        "description": "Repeated key",
+                                        "value": {
+                                            "id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+                                            "subscriptionId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+                                            "amount": 149.0,
+                                            "currency": "PEN",
+                                            "status": "APPROVED",
+                                            "cardBrand": "VISA",
+                                            "cardLast4": "1111",
+                                            "paidAt": "2026-11-21T15:05:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid data: missing fields, a number that fails the Luhn check, an expired card or a CVV of the wrong length. The card data is never echoed",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Invalid number": {
+                                        "description": "Invalid number",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "Card number is not valid",
+                                            "instance": "/api/v1/payments"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The request did not come through the gateway with a valid token",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Unauthorized",
+                                            "status": 401,
+                                            "detail": "The request has no valid X-User-Id header. Call this endpoint through the API gateway with a valid token.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "The gateway declined the payment; the attempt is kept as REJECTED",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Declined": {
+                                        "description": "Declined",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Payment Required",
+                                            "status": 402,
+                                            "detail": "The payment was declined.",
+                                            "instance": "/api/v1/payments",
+                                            "paymentId": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+                                            "declineReason": "INSUFFICIENT_FUNDS"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The signed-in user is not an administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Resident": {
+                                        "description": "Resident",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Forbidden",
+                                            "status": 403,
+                                            "detail": "Only an administrator can manage subscriptions and payments.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The subscription does not exist or belongs to another administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Not found": {
+                                        "description": "Not found",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "The subscription does not exist.",
+                                            "instance": "/api/v1/payments"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The subscription is cancelled or replaced, or the Idempotency-Key was used for another subscription",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Key of another subscription": {
+                                        "description": "Key of another subscription",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Conflict",
+                                            "status": 409,
+                                            "detail": "The Idempotency-Key was already used for another subscription.",
+                                            "instance": "/api/v1/payments"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/subscriptions/{subscriptionId}": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "Read a subscription",
+                "description": "US07. The plan, status and expiry of a subscription of the signed-in administrator. A subscription of another administrator gets the same 404 as one that does not exist. Call it through the API gateway with 'Authorization: Bearer <token>' of an administrator; the gateway sets X-User-Id and X-Role.",
+                "operationId": "get",
+                "parameters": [
+                    {
+                        "name": "subscriptionId",
+                        "in": "path",
+                        "description": "Id of the subscription",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "example": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                    },
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the signed-in administrator, set by the API gateway from the token; clients do not send it",
+                        "required": true,
+                        "example": "7d3c5b1e-2f4a-4c8e-9b6d-1a2b3c4d5e6f"
+                    },
+                    {
+                        "name": "X-Role",
+                        "in": "header",
+                        "description": "Role of the signed-in user, set by the API gateway from the token; it must be ADMINISTRATOR",
+                        "required": true,
+                        "example": "ADMINISTRATOR"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The subscription",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubscriptionResponse"
+                                },
+                                "examples": {
+                                    "Active": {
+                                        "description": "Active",
+                                        "value": {
+                                            "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+                                            "buildingId": "3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b",
+                                            "plan": {
+                                                "id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001",
+                                                "code": "MONTHLY",
+                                                "name": "Plan mensual",
+                                                "billingCycle": "MONTHLY",
+                                                "price": 149.0,
+                                                "currency": "PEN",
+                                                "sensorLimit": 20
+                                            },
+                                            "status": "ACTIVE",
+                                            "startsAt": "2026-11-21T15:05:00Z",
+                                            "expiresAt": "2026-12-21T15:05:00Z",
+                                            "createdAt": "2026-11-21T15:00:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The subscription does not exist or belongs to another administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Not found": {
+                                        "description": "Not found",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "The subscription does not exist.",
+                                            "instance": "/api/v1/subscriptions/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The request did not come through the gateway with a valid token",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Unauthorized",
+                                            "status": 401,
+                                            "detail": "The request has no valid X-User-Id header. Call this endpoint through the API gateway with a valid token.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The signed-in user is not an administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Resident": {
+                                        "description": "Resident",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Forbidden",
+                                            "status": 403,
+                                            "detail": "Only an administrator can manage subscriptions and payments.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/subscriptions/{subscriptionId}/payments": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "List the payments of a subscription",
+                "description": "US07. Every payment attempt of the subscription, approved or rejected, newest first. Call it through the API gateway with 'Authorization: Bearer <token>' of an administrator; the gateway sets X-User-Id and X-Role.",
+                "operationId": "listPayments",
+                "parameters": [
+                    {
+                        "name": "subscriptionId",
+                        "in": "path",
+                        "description": "Id of the subscription",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "example": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                    },
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the signed-in administrator, set by the API gateway from the token; clients do not send it",
+                        "required": true,
+                        "example": "7d3c5b1e-2f4a-4c8e-9b6d-1a2b3c4d5e6f"
+                    },
+                    {
+                        "name": "X-Role",
+                        "in": "header",
+                        "description": "Role of the signed-in user, set by the API gateway from the token; it must be ADMINISTRATOR",
+                        "required": true,
+                        "example": "ADMINISTRATOR"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The payments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PaymentResponse"
+                                    }
+                                },
+                                "examples": {
+                                    "One payment": {
+                                        "description": "One payment",
+                                        "value": [
+                                            {
+                                                "id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+                                                "subscriptionId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+                                                "amount": 149.0,
+                                                "currency": "PEN",
+                                                "status": "APPROVED",
+                                                "cardBrand": "VISA",
+                                                "cardLast4": "1111",
+                                                "paidAt": "2026-11-21T15:05:00Z"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The subscription does not exist or belongs to another administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Not found": {
+                                        "description": "Not found",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "The subscription does not exist.",
+                                            "instance": "/api/v1/subscriptions/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The request did not come through the gateway with a valid token",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Unauthorized",
+                                            "status": 401,
+                                            "detail": "The request has no valid X-User-Id header. Call this endpoint through the API gateway with a valid token.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The signed-in user is not an administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Resident": {
+                                        "description": "Resident",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Forbidden",
+                                            "status": 403,
+                                            "detail": "Only an administrator can manage subscriptions and payments.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/subscriptions/plans": {
+            "get": {
+                "tags": [
+                    "Subscriptions"
+                ],
+                "summary": "List the subscription plans",
+                "description": "US05. The plans an administrator can choose for a building, cheapest first. Call it through the API gateway with 'Authorization: Bearer <token>' of an administrator; the gateway sets X-User-Id and X-Role.",
+                "operationId": "listPlans",
+                "parameters": [
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the signed-in administrator, set by the API gateway from the token; clients do not send it",
+                        "required": true,
+                        "example": "7d3c5b1e-2f4a-4c8e-9b6d-1a2b3c4d5e6f"
+                    },
+                    {
+                        "name": "X-Role",
+                        "in": "header",
+                        "description": "Role of the signed-in user, set by the API gateway from the token; it must be ADMINISTRATOR",
+                        "required": true,
+                        "example": "ADMINISTRATOR"
+                    }
+                ],
+                "responses": {
+                    "401": {
+                        "description": "The request did not come through the gateway with a valid token",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Unauthorized",
+                                            "status": 401,
+                                            "detail": "The request has no valid X-User-Id header. Call this endpoint through the API gateway with a valid token.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The signed-in user is not an administrator",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Resident": {
+                                        "description": "Resident",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Forbidden",
+                                            "status": 403,
+                                            "detail": "Only an administrator can manage subscriptions and payments.",
+                                            "instance": "/api/v1/subscriptions/plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "The plans",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PlanResponse"
+                                    }
+                                },
+                                "examples": {
+                                    "Two plans": {
+                                        "description": "Two plans",
+                                        "value": [
+                                            {
+                                                "id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001",
+                                                "code": "MONTHLY",
+                                                "name": "Plan mensual",
+                                                "billingCycle": "MONTHLY",
+                                                "price": 149.0,
+                                                "currency": "PEN",
+                                                "sensorLimit": 20
+                                            },
+                                            {
+                                                "id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1002",
+                                                "code": "ANNUAL",
+                                                "name": "Plan anual",
+                                                "billingCycle": "ANNUAL",
+                                                "price": 1490.0,
+                                                "currency": "PEN",
+                                                "sensorLimit": 20
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/subscriptions/health": {
             "get": {
                 "tags": [
@@ -52,6 +854,285 @@
     },
     "components": {
         "schemas": {
+            "ChooseSubscriptionRequest": {
+                "type": "object",
+                "description": "The plan chosen for a building",
+                "properties": {
+                    "buildingId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the building in the Building service",
+                        "example": "3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+                    },
+                    "planCode": {
+                        "type": "string",
+                        "description": "Code of the plan",
+                        "enum": [
+                            "MONTHLY",
+                            "ANNUAL"
+                        ],
+                        "example": "MONTHLY",
+                        "maxLength": 20,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "buildingId",
+                    "planCode"
+                ]
+            },
+            "PlanResponse": {
+                "type": "object",
+                "description": "A subscription plan",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the plan",
+                        "example": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001"
+                    },
+                    "code": {
+                        "type": "string",
+                        "description": "Code used to choose the plan",
+                        "example": "MONTHLY"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name shown to the administrator",
+                        "example": "Plan mensual"
+                    },
+                    "billingCycle": {
+                        "type": "string",
+                        "description": "How often the plan is paid",
+                        "enum": [
+                            "MONTHLY",
+                            "ANNUAL"
+                        ],
+                        "example": "MONTHLY"
+                    },
+                    "price": {
+                        "type": "number",
+                        "description": "Price of one cycle",
+                        "example": 149.0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency of the price",
+                        "example": "PEN"
+                    },
+                    "sensorLimit": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Maximum number of sensors of the building",
+                        "example": 20
+                    }
+                }
+            },
+            "SubscriptionResponse": {
+                "type": "object",
+                "description": "The subscription of a building",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the subscription",
+                        "example": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                    },
+                    "buildingId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the building",
+                        "example": "3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+                    },
+                    "plan": {
+                        "$ref": "#/components/schemas/PlanResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Status as of now: an active subscription past its expiry is EXPIRED",
+                        "enum": [
+                            "PENDING_PAYMENT",
+                            "ACTIVE",
+                            "EXPIRED",
+                            "CANCELLED"
+                        ],
+                        "example": "ACTIVE"
+                    },
+                    "startsAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the current period started; null until the first approved payment",
+                        "example": "2026-11-21T15:05:00Z"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the subscription expires; null until the first approved payment",
+                        "example": "2026-12-21T15:05:00Z"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the plan was chosen",
+                        "example": "2026-11-21T15:00:00Z"
+                    }
+                }
+            },
+            "ProblemDetail": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "instance": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            },
+            "CardRequest": {
+                "type": "object",
+                "description": "The card to charge. It is never stored, logged or returned",
+                "properties": {
+                    "number": {
+                        "type": "string",
+                        "description": "Card number; it must pass the Luhn check. Test cards: 4111111111111111 is approved, 4000000000000002 is declined",
+                        "example": 4111111111111111,
+                        "maxLength": 23,
+                        "minLength": 0
+                    },
+                    "holderName": {
+                        "type": "string",
+                        "description": "Name printed on the card",
+                        "example": "Ana Torres",
+                        "maxLength": 100,
+                        "minLength": 0
+                    },
+                    "expiryMonth": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Expiry month",
+                        "example": 12,
+                        "maximum": 12,
+                        "minimum": 1
+                    },
+                    "expiryYear": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Expiry year, four digits",
+                        "example": 2030,
+                        "maximum": 2099,
+                        "minimum": 2000
+                    },
+                    "cvv": {
+                        "type": "string",
+                        "description": "Security code: 3 digits, or 4 for AMEX",
+                        "example": 123,
+                        "minLength": 1,
+                        "pattern": "\\d{3,4}"
+                    }
+                },
+                "required": [
+                    "cvv",
+                    "expiryMonth",
+                    "expiryYear",
+                    "holderName",
+                    "number"
+                ]
+            },
+            "PaymentRequest": {
+                "type": "object",
+                "description": "Online payment of a subscription",
+                "properties": {
+                    "subscriptionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the subscription to pay",
+                        "example": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                    },
+                    "card": {
+                        "$ref": "#/components/schemas/CardRequest"
+                    }
+                },
+                "required": [
+                    "card",
+                    "subscriptionId"
+                ]
+            },
+            "PaymentResponse": {
+                "type": "object",
+                "description": "A payment attempt. Only the brand and last four digits of the card are kept",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the payment",
+                        "example": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f"
+                    },
+                    "subscriptionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the subscription paid",
+                        "example": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "Amount charged",
+                        "example": 149.0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "ISO 4217 currency",
+                        "example": "PEN"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Outcome of the attempt",
+                        "enum": [
+                            "APPROVED",
+                            "REJECTED"
+                        ],
+                        "example": "APPROVED"
+                    },
+                    "cardBrand": {
+                        "type": "string",
+                        "description": "Brand of the card",
+                        "enum": [
+                            "VISA",
+                            "MASTERCARD",
+                            "AMEX",
+                            "UNKNOWN"
+                        ],
+                        "example": "VISA"
+                    },
+                    "cardLast4": {
+                        "type": "string",
+                        "description": "Last four digits of the card",
+                        "example": 1111
+                    },
+                    "paidAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the payment was attempted",
+                        "example": "2026-11-21T15:05:00Z"
+                    }
+                }
+            },
             "HealthResponse": {
                 "type": "object",
                 "description": "Liveness information of the service",
