@@ -1,8 +1,11 @@
 package com.rumi.billing.infrastructure.web;
 
 import com.rumi.billing.application.BuildingAlreadySubscribedException;
+import com.rumi.billing.application.IdempotencyKeyConflictException;
+import com.rumi.billing.application.PaymentRejectedException;
 import com.rumi.billing.application.PlanNotFoundException;
 import com.rumi.billing.application.SubscriptionNotFoundException;
+import com.rumi.billing.application.SubscriptionNotPayableException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -59,9 +62,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
-    @ExceptionHandler(BuildingAlreadySubscribedException.class)
+    @ExceptionHandler({BuildingAlreadySubscribedException.class, SubscriptionNotPayableException.class,
+            IdempotencyKeyConflictException.class})
     public ProblemDetail handleConflict(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    /**
+     * The attempt is already stored as REJECTED; its id and the short reason code of the gateway are added.
+     */
+    @ExceptionHandler(PaymentRejectedException.class)
+    public ProblemDetail handlePaymentRejected(PaymentRejectedException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.PAYMENT_REQUIRED, exception.getMessage());
+        problem.setProperty("paymentId", exception.payment().getId());
+        exception.declineReason().ifPresent(reason -> problem.setProperty("declineReason", reason));
+        return problem;
     }
 
     /**
