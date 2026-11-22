@@ -58,15 +58,17 @@ class SimulatedPaymentGatewayClientTest {
     }
 
     @Test
-    void neverLogsTheCardNumberTheCvvOrTheHolder(CapturedOutput output) {
-        gateway.charge(charge("4111111111111111", "987"));
-        gateway.charge(charge(SimulatedPaymentGatewayClient.DECLINED_CARD, "987"));
+    void logsOnlyTheReferenceTheAmountTheBrandAndTheLastDigits(CapturedOutput output) {
+        String approved = gateway.charge(charge("4111111111111111", "987")).reference();
+        String declined = gateway.charge(charge(SimulatedPaymentGatewayClient.DECLINED_CARD, "987")).reference();
 
+        // The exact lines prove that the CVV is not logged; a plain "does not contain 987" could match the random
+        // reference or the timestamp.
         assertThat(output.getAll())
-                .contains("sim_")
+                .contains("Simulated charge " + approved + " of 149.00 PEN with CardDetails[brand=VISA, last4=1111]: approved")
+                .contains("Simulated charge " + declined + " of 149.00 PEN with CardDetails[brand=VISA, last4=0002]: declined")
                 .doesNotContain("4111111111111111")
                 .doesNotContain(SimulatedPaymentGatewayClient.DECLINED_CARD)
-                .doesNotContain("987")
                 .doesNotContain("Ana Torres");
     }
 }
