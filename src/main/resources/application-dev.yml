@@ -1,5 +1,6 @@
 # Development profile: runs with no external infrastructure.
-# The schema is created in an in-memory H2 database on startup and dropped on shutdown.
+# The schema is created in an in-memory H2 database on startup and dropped on shutdown, then the two plans are
+# seeded. H2 has no partial index, so "one open subscription per building" is enforced only by the application here.
 spring:
   datasource:
     url: jdbc:h2:mem:billingdb;DB_CLOSE_DELAY=-1
@@ -8,3 +9,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+    # Seed after Hibernate has created the tables.
+    defer-datasource-initialization: true
+  sql:
+    init:
+      data-locations: classpath:db/dev-plans.sql
