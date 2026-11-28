@@ -59,7 +59,7 @@ class PaymentControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(PAYMENT_ID.toString()))
                 .andExpect(jsonPath("$.subscriptionId").value(SUBSCRIPTION_ID.toString()))
-                .andExpect(jsonPath("$.amount").value(149.00))
+                .andExpect(jsonPath("$.amount").value(199.00))
                 .andExpect(jsonPath("$.currency").value("PEN"))
                 .andExpect(jsonPath("$.status").value("APPROVED"))
                 .andExpect(jsonPath("$.cardBrand").value("VISA"))

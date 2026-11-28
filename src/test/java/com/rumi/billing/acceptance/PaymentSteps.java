@@ -58,7 +58,7 @@ public class PaymentSteps {
         assertThat(api.body().path("status").asText()).isEqualTo(status);
         assertThat(api.body().path("cardBrand").asText()).isEqualTo(brand);
         assertThat(api.body().path("cardLast4").asText()).isEqualTo(last4);
-        assertThat(api.body().path("amount").decimalValue()).isEqualByComparingTo("149.00");
+        assertThat(api.body().path("amount").decimalValue()).isEqualByComparingTo("199.00");
     }
 
     @And("the response does not contain the card")

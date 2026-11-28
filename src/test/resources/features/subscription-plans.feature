@@ -11,7 +11,7 @@ Feature: Subscription plans
   Scenario: The administrator lists the plans
     When "Ana" lists the subscription plans
     Then the response status is 200
-    And the plans are "MONTHLY" at "149.00" PEN and "ANNUAL" at "1490.00" PEN
+    And the plans are "MONTHLY" at "199.00" PEN and "ANNUAL" at "1990.00" PEN, with 10 sensors each
 
   Scenario: The administrator chooses the monthly plan for a building
     When "Ana" chooses the plan "MONTHLY" for the building "Torre Lima"

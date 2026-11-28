@@ -24,4 +24,12 @@ class DevProfileTest {
     void seedsTheTwoPlansInH2() {
         assertThat(plans.findAll()).extracting(Plan::getCode).containsExactly("MONTHLY", "ANNUAL");
     }
+
+    @Test
+    void seedsTheSamePricesAndSensorLimitAsDocsSchema() {
+        assertThat(plans.findAll())
+                .extracting(plan -> plan.getCode() + " " + plan.getPrice().amount().toPlainString() + " "
+                        + plan.getPrice().currency() + " " + plan.getSensorLimit())
+                .containsExactly("MONTHLY 199.00 PEN 10", "ANNUAL 1990.00 PEN 10");
+    }
 }

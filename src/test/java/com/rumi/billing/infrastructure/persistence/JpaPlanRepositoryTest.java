@@ -29,15 +29,29 @@ class JpaPlanRepositoryTest {
     }
 
     @Test
+    void theSeededPlansCost199And1990PenWithTaxIncludedAndAllowTenSensors() {
+        assertThat(repository.findByCode("MONTHLY")).hasValueSatisfying(plan -> {
+            assertThat(plan.getPrice().amount()).isEqualByComparingTo("199.00");
+            assertThat(plan.getPrice().currency()).isEqualTo("PEN");
+            assertThat(plan.getSensorLimit()).isEqualTo(10);
+        });
+        assertThat(repository.findByCode("ANNUAL")).hasValueSatisfying(plan -> {
+            assertThat(plan.getPrice().amount()).isEqualByComparingTo("1990.00");
+            assertThat(plan.getPrice().currency()).isEqualTo("PEN");
+            assertThat(plan.getSensorLimit()).isEqualTo(10);
+        });
+    }
+
+    @Test
     void findsAPlanByItsCodeWithItsExactPrice() {
         assertThat(repository.findByCode("ANNUAL")).hasValueSatisfying(plan -> {
             assertThat(plan.getId()).isEqualTo(UUID.fromString("0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1002"));
             assertThat(plan.getName()).isEqualTo("Plan anual");
             assertThat(plan.getBillingCycle()).isEqualTo(BillingCycle.ANNUAL);
-            assertThat(plan.getPrice().amount()).isEqualByComparingTo("1490.00");
+            assertThat(plan.getPrice().amount()).isEqualByComparingTo("1990.00");
             assertThat(plan.getPrice().amount().scale()).isEqualTo(2);
             assertThat(plan.getPrice().currency()).isEqualTo("PEN");
-            assertThat(plan.getSensorLimit()).isEqualTo(20);
+            assertThat(plan.getSensorLimit()).isEqualTo(10);
         });
         assertThat(repository.findByCode("WEEKLY")).isEmpty();
     }
