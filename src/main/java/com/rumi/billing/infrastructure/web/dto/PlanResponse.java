@@ -17,7 +17,7 @@ public record PlanResponse(
         String name,
         @Schema(description = "How often the plan is paid", example = "MONTHLY")
         BillingCycle billingCycle,
-        @Schema(description = "Price of one cycle", example = "149.00")
+        @Schema(description = "Price of one cycle in the plan currency, IGV included", example = "199.00")
         BigDecimal price,
         @Schema(description = "ISO 4217 currency of the price", example = "PEN")
         String currency,

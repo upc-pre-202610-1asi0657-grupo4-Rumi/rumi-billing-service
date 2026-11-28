@@ -67,9 +67,9 @@ public class SubscriptionController {
                     array = @ArraySchema(schema = @Schema(implementation = PlanResponse.class)),
                     examples = @ExampleObject(name = "Two plans", value = """
                             [{"id":"0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001","code":"MONTHLY","name":"Plan mensual",\
-                            "billingCycle":"MONTHLY","price":149.00,"currency":"PEN","sensorLimit":20},\
+                            "billingCycle":"MONTHLY","price":199.00,"currency":"PEN","sensorLimit":10},\
                             {"id":"0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1002","code":"ANNUAL","name":"Plan anual",\
-                            "billingCycle":"ANNUAL","price":1490.00,"currency":"PEN","sensorLimit":20}]""")))
+                            "billingCycle":"ANNUAL","price":1990.00,"currency":"PEN","sensorLimit":10}]""")))
     @GatewayHeaders
     @GetMapping("/plans")
     public List<PlanResponse> listPlans(@Parameter(hidden = true) @CurrentAdministratorId UUID administratorId) {
@@ -88,7 +88,7 @@ public class SubscriptionController {
                     examples = @ExampleObject(name = "Pending payment", value = """
                             {"id":"9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d","buildingId":"3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b",\
                             "plan":{"id":"0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001","code":"MONTHLY","name":"Plan mensual",\
-                            "billingCycle":"MONTHLY","price":149.00,"currency":"PEN","sensorLimit":20},\
+                            "billingCycle":"MONTHLY","price":199.00,"currency":"PEN","sensorLimit":10},\
                             "status":"PENDING_PAYMENT","startsAt":null,"expiresAt":null,\
                             "createdAt":"2026-11-21T15:00:00Z"}""")))
     @ApiResponse(responseCode = "400", description = "Invalid data; field errors are listed in 'errors'",

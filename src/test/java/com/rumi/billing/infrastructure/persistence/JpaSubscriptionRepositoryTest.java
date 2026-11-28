@@ -73,7 +73,7 @@ class JpaSubscriptionRepositoryTest {
             assertThat(found.getPayments()).extracting(Payment::getId).containsExactly(rejected.getId(), approved.getId());
             Payment stored = found.getPayments().get(1);
             assertThat(stored.getStatus()).isEqualTo(PaymentStatus.APPROVED);
-            assertThat(stored.getAmount().amount()).isEqualByComparingTo("149.00");
+            assertThat(stored.getAmount().amount()).isEqualByComparingTo("199.00");
             assertThat(stored.getAmount().currency()).isEqualTo("PEN");
             assertThat(stored.getCardBrand()).isEqualTo(CardBrand.VISA);
             assertThat(stored.getCardLast4()).isEqualTo("1111");
@@ -103,7 +103,7 @@ class JpaSubscriptionRepositoryTest {
 
         BigDecimal stored = jdbcTemplate.queryForObject("SELECT amount FROM payments WHERE subscription_id = ?",
                 BigDecimal.class, subscription.getId());
-        assertThat(stored).isEqualTo(new BigDecimal("149.00"));
+        assertThat(stored).isEqualTo(new BigDecimal("199.00"));
     }
 
     @Test

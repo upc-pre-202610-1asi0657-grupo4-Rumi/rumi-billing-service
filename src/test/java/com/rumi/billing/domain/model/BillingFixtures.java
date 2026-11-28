@@ -15,9 +15,9 @@ public final class BillingFixtures {
     public static final Instant NOW = Instant.parse("2026-01-31T15:00:00Z");
 
     public static final Plan MONTHLY = new Plan(UUID.fromString("0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001"),
-            "MONTHLY", "Plan mensual", BillingCycle.MONTHLY, new Money(new BigDecimal("149.00"), "PEN"), 20);
+            "MONTHLY", "Plan mensual", BillingCycle.MONTHLY, new Money(new BigDecimal("199.00"), "PEN"), 10);
     public static final Plan ANNUAL = new Plan(UUID.fromString("0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1002"),
-            "ANNUAL", "Plan anual", BillingCycle.ANNUAL, new Money(new BigDecimal("1490.00"), "PEN"), 20);
+            "ANNUAL", "Plan anual", BillingCycle.ANNUAL, new Money(new BigDecimal("1990.00"), "PEN"), 10);
 
     private BillingFixtures() {
     }

@@ -59,8 +59,9 @@ public class SubscriptionSteps {
         api.get(SUBSCRIPTIONS + "/" + state.subscriptionId() + "/payments", state.headersOf(user));
     }
 
-    @Then("the plans are {string} at {string} PEN and {string} at {string} PEN")
-    public void thePlansAre(String firstCode, String firstPrice, String secondCode, String secondPrice) throws Exception {
+    @Then("the plans are {string} at {string} PEN and {string} at {string} PEN, with {int} sensors each")
+    public void thePlansAre(String firstCode, String firstPrice, String secondCode, String secondPrice,
+                            int sensorLimit) throws Exception {
         JsonNode plans = api.body();
         assertThat(plans).hasSize(2);
         assertThat(plans.get(0).path("code").asText()).isEqualTo(firstCode);
@@ -68,6 +69,8 @@ public class SubscriptionSteps {
         assertThat(plans.get(0).path("currency").asText()).isEqualTo("PEN");
         assertThat(plans.get(1).path("code").asText()).isEqualTo(secondCode);
         assertThat(plans.get(1).path("price").decimalValue()).isEqualByComparingTo(secondPrice);
+        assertThat(plans.get(0).path("sensorLimit").asInt()).isEqualTo(sensorLimit);
+        assertThat(plans.get(1).path("sensorLimit").asInt()).isEqualTo(sensorLimit);
     }
 
     @And("the response is a subscription {string} to the plan {string}")

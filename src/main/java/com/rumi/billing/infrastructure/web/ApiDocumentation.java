@@ -29,12 +29,12 @@ final class ApiDocumentation {
     static final String SUBSCRIPTION_EXAMPLE = """
             {"id":"9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d","buildingId":"3f1a2b3c-4d5e-4f60-8a7b-9c0d1e2f3a4b",\
             "plan":{"id":"0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001","code":"MONTHLY","name":"Plan mensual",\
-            "billingCycle":"MONTHLY","price":149.00,"currency":"PEN","sensorLimit":20},\
+            "billingCycle":"MONTHLY","price":199.00,"currency":"PEN","sensorLimit":10},\
             "status":"ACTIVE","startsAt":"2026-11-21T15:05:00Z","expiresAt":"2026-12-21T15:05:00Z",\
             "createdAt":"2026-11-21T15:00:00Z"}""";
     static final String PAYMENT_EXAMPLE = """
             {"id":"1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f","subscriptionId":"9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",\
-            "amount":149.00,"currency":"PEN","status":"APPROVED","cardBrand":"VISA","cardLast4":"1111",\
+            "amount":199.00,"currency":"PEN","status":"APPROVED","cardBrand":"VISA","cardLast4":"1111",\
             "paidAt":"2026-11-21T15:05:00Z"}""";
 
     private ApiDocumentation() {

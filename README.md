@@ -48,14 +48,30 @@ GET /api/v1/subscriptions/plans
 200 OK
 [
   {"id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1001", "code": "MONTHLY", "name": "Plan mensual",
-   "billingCycle": "MONTHLY", "price": 149.00, "currency": "PEN", "sensorLimit": 20},
+   "billingCycle": "MONTHLY", "price": 199.00, "currency": "PEN", "sensorLimit": 10},
   {"id": "0b5c0f3e-4c5a-4f0e-9a51-2a6f2f7b1002", "code": "ANNUAL", "name": "Plan anual",
-   "billingCycle": "ANNUAL", "price": 1490.00, "currency": "PEN", "sensorLimit": 20}
+   "billingCycle": "ANNUAL", "price": 1990.00, "currency": "PEN", "sensorLimit": 10}
 ]
 ```
 
-Plans are reference data created by [`docs/schema.sql`](docs/schema.sql). **The prices and sensor limits are
-assumptions of the team**, not commercial figures.
+Plans are reference data created by [`docs/schema.sql`](docs/schema.sql) (and `db/dev-plans.sql` in the `dev`
+profile):
+
+| Plan | Price (PEN, IGV included) | Sensors |
+|---|---|---|
+| `MONTHLY` | 199.00 per month | 10 |
+| `ANNUAL` | 1990.00 per year | 10 |
+
+Hardware and installation are quoted separately. The model has no tax field: the price already includes IGV.
+`sensorLimit` is informative for now; no service enforces it yet.
+
+The seed only runs when the database is created. To update a database created with the earlier prices
+(149.00 / 1490.00 PEN, 20 sensors):
+
+```sql
+UPDATE plans SET price = 199.00, sensor_limit = 10 WHERE code = 'MONTHLY';
+UPDATE plans SET price = 1990.00, sensor_limit = 10 WHERE code = 'ANNUAL';
+```
 
 ### Choose a plan (US05)
 
@@ -96,7 +112,7 @@ Location: /api/v1/subscriptions/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d
 200 OK
 [
   {"id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f", "subscriptionId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
-   "amount": 149.00, "currency": "PEN", "status": "APPROVED", "cardBrand": "VISA", "cardLast4": "1111",
+   "amount": 199.00, "currency": "PEN", "status": "APPROVED", "cardBrand": "VISA", "cardLast4": "1111",
    "paidAt": "2026-11-21T15:05:00Z"}
 ]
 ```
@@ -128,7 +144,7 @@ Idempotency-Key: order-2026-11-21-0001        (optional, at most 64 characters)
 {
   "id": "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
   "subscriptionId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
-  "amount": 149.00,
+  "amount": 199.00,
   "currency": "PEN",
   "status": "APPROVED",
   "cardBrand": "VISA",

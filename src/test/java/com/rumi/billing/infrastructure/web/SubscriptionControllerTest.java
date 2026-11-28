@@ -57,9 +57,9 @@ class SubscriptionControllerTest {
                 .andExpect(jsonPath("$[0].code").value("MONTHLY"))
                 .andExpect(jsonPath("$[0].name").value("Plan mensual"))
                 .andExpect(jsonPath("$[0].billingCycle").value("MONTHLY"))
-                .andExpect(jsonPath("$[0].price").value(149.00))
+                .andExpect(jsonPath("$[0].price").value(199.00))
                 .andExpect(jsonPath("$[0].currency").value("PEN"))
-                .andExpect(jsonPath("$[0].sensorLimit").value(20))
+                .andExpect(jsonPath("$[0].sensorLimit").value(10))
                 .andExpect(jsonPath("$[1].code").value("ANNUAL"));
     }
 
@@ -178,7 +178,7 @@ class SubscriptionControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(WebFixtures.PAYMENT_ID.toString()))
                 .andExpect(jsonPath("$[0].subscriptionId").value(SUBSCRIPTION_ID.toString()))
-                .andExpect(jsonPath("$[0].amount").value(149.00))
+                .andExpect(jsonPath("$[0].amount").value(199.00))
                 .andExpect(jsonPath("$[0].currency").value("PEN"))
                 .andExpect(jsonPath("$[0].status").value("APPROVED"))
                 .andExpect(jsonPath("$[0].cardBrand").value("VISA"))

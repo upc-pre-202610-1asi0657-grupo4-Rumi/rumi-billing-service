@@ -15,7 +15,7 @@ public record PaymentResponse(
         UUID id,
         @Schema(description = "Id of the subscription paid", example = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d")
         UUID subscriptionId,
-        @Schema(description = "Amount charged", example = "149.00")
+        @Schema(description = "Amount charged, IGV included", example = "199.00")
         BigDecimal amount,
         @Schema(description = "ISO 4217 currency", example = "PEN")
         String currency,
